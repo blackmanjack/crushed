@@ -1,0 +1,21 @@
+# Unicode confusable/homoglyph reference table (concept per 0xacb.com/normalization_table).
+# Format: <confusable char/codepoint> => <ascii equivalent>
+# Cyrillic look-alikes
+U+0430 => a
+U+0435 => e
+U+043E => o
+U+0440 => p
+U+0441 => c
+U+0443 => y
+U+0445 => x
+# Greek look-alikes
+U+03B1 => a
+U+03BF => o
+U+03C1 => p
+# Fullwidth ASCII block
+U+FF01-U+FF5E => ASCII 0x21-0x7E (fullwidth forms)
+# Zero-width characters (often used to break keyword filters)
+U+200B => (zero width space)
+U+200C => (zero width non-joiner)
+U+200D => (zero width joiner)
+U+FEFF => (zero width no-break space / BOM)
