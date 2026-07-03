@@ -75,7 +75,7 @@ class ActiveConfirmationServiceTest {
         // need a real MontoyaApi to build; these tests only exercise paths that fail before any
         // of them would be invoked (missing store entry / missing param / unwired type).
         return new ActiveConfirmationService(requestStore, null, null, null, null, sqliDetector, xssDetector,
-                oastConfirmedDetector, massAssignmentDetector, firebaseDetector, null, null, activityLog);
+                oastConfirmedDetector, massAssignmentDetector, firebaseDetector, null, null, null, null, activityLog);
     }
 
     private Finding findingWithEvidence(IssueType issueType, int historyId, String param) {

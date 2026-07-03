@@ -129,6 +129,15 @@ public final class CrawlEngine {
         return fetchAndIngestReturning(request) != null;
     }
 
+    /** Sends a request and, on success, writes the completed pair back into Burp's own Site Map
+     * and runs it through crushed's analyzer pipeline — the same shared primitive used by both
+     * crawl modes above. Public so other active probes (e.g. BackupFileProbe) can reuse it rather
+     * than duplicating the send/siteMap.add/ingestFetched sequence. Callers are responsible for
+     * their own gating (Active mode etc.) before calling this. */
+    public HttpResponse sendAndIngest(HttpRequest request) {
+        return fetchAndIngestReturning(request);
+    }
+
     private HttpResponse fetchAndIngestReturning(HttpRequest request) {
         try {
             HttpRequestResponse result = api.http().sendRequest(request);

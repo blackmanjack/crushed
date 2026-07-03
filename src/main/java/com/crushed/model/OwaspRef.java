@@ -49,4 +49,28 @@ public record OwaspRef(String owaspTop10, String owaspApiTop10, String wstgId, S
             new OwaspRef("A03:2021", null, "WSTG-INPV-15", "CWE-93");
     public static final OwaspRef OAUTH_MISCONFIG =
             new OwaspRef("A07:2021", "API2:2023", "WSTG-ATHN-01", "CWE-346");
+    public static final OwaspRef COOKIE_MISSING_SECURE =
+            new OwaspRef("A05:2021", null, "WSTG-SESS-02", "CWE-614");
+    public static final OwaspRef COOKIE_MISSING_HTTPONLY =
+            new OwaspRef("A05:2021", null, "WSTG-SESS-02", "CWE-1004");
+    public static final OwaspRef COOKIE_MISSING_SAMESITE =
+            new OwaspRef("A05:2021", null, "WSTG-SESS-02", "CWE-352");
+    public static final OwaspRef TECH_STACK_DISCLOSURE =
+            new OwaspRef("A05:2021", null, "WSTG-INFO-02", "CWE-200");
+    public static final OwaspRef MISSING_HSTS =
+            new OwaspRef("A05:2021", null, "WSTG-CONF-07", "CWE-319");
+    public static final OwaspRef MISSING_X_CONTENT_TYPE_OPTIONS =
+            new OwaspRef("A05:2021", null, "WSTG-CONF-07", "CWE-693");
+    public static final OwaspRef MISSING_CLICKJACKING_PROTECTION =
+            new OwaspRef("A05:2021", null, "WSTG-CLNT-09", "CWE-1021");
+    public static final OwaspRef MISSING_CSP =
+            new OwaspRef("A05:2021", null, "WSTG-CONF-07", "CWE-693");
+    public static final OwaspRef INSECURE_DESERIALIZATION =
+            new OwaspRef("A08:2021", null, "WSTG-BUSL-03", "CWE-502");
+    public static final OwaspRef REQUEST_SMUGGLING =
+            new OwaspRef("A05:2021", null, "WSTG-INPV-15", "CWE-444");
+    public static final OwaspRef PROTOTYPE_POLLUTION =
+            new OwaspRef("A03:2021", null, "WSTG-INPV-11", "CWE-1321");
+    public static final OwaspRef FORBIDDEN_BYPASS =
+            new OwaspRef("A01:2021", "API1:2023", "WSTG-ATHZ-02", "CWE-284");
 }

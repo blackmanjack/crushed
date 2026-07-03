@@ -45,6 +45,6 @@ class ActiveConfirmationServiceFirebaseTest {
         FirebaseDetector firebaseDetector = new FirebaseDetector(activityLog);
         // firebaseSenderFactory stays null — the "no projectId" branch returns before it would be used.
         return new ActiveConfirmationService(requestStore, null, null, null, null, sqliDetector, xssDetector,
-                oastConfirmedDetector, massAssignmentDetector, firebaseDetector, null, null, activityLog);
+                oastConfirmedDetector, massAssignmentDetector, firebaseDetector, null, null, null, null, activityLog);
     }
 }

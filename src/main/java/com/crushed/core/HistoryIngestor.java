@@ -101,7 +101,8 @@ public final class HistoryIngestor implements ProxyResponseHandler {
                     paramNames,
                     request.bodyToString(),
                     responseBody,
-                    responseMime
+                    responseMime,
+                    request.httpService() != null && request.httpService().secure()
             );
 
             pipeline.process(context);

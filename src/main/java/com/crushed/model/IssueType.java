@@ -24,7 +24,19 @@ public enum IssueType {
     REFLECTED_INPUT("Reflected user input", OwaspRef.REFLECTED_INPUT),
     PATH_TRAVERSAL("Path traversal", OwaspRef.PATH_TRAVERSAL),
     CRLF_INJECTION("CRLF injection / HTTP response splitting", OwaspRef.CRLF_INJECTION),
-    OAUTH_MISCONFIGURATION("OAuth/OIDC misconfiguration", OwaspRef.OAUTH_MISCONFIG);
+    OAUTH_MISCONFIGURATION("OAuth/OIDC misconfiguration", OwaspRef.OAUTH_MISCONFIG),
+    COOKIE_MISSING_SECURE_FLAG("Cookie without Secure flag set", OwaspRef.COOKIE_MISSING_SECURE),
+    COOKIE_MISSING_HTTPONLY_FLAG("Cookie without HttpOnly flag set", OwaspRef.COOKIE_MISSING_HTTPONLY),
+    COOKIE_MISSING_SAMESITE("Cookie without SameSite attribute", OwaspRef.COOKIE_MISSING_SAMESITE),
+    TECH_STACK_DISCLOSURE("Server/technology version disclosure", OwaspRef.TECH_STACK_DISCLOSURE),
+    MISSING_HSTS("Strict-Transport-Security not enforced", OwaspRef.MISSING_HSTS),
+    MISSING_X_CONTENT_TYPE_OPTIONS("X-Content-Type-Options not set", OwaspRef.MISSING_X_CONTENT_TYPE_OPTIONS),
+    MISSING_CLICKJACKING_PROTECTION("Clickjacking: frameable response", OwaspRef.MISSING_CLICKJACKING_PROTECTION),
+    MISSING_CSP("Content-Security-Policy not implemented", OwaspRef.MISSING_CSP),
+    INSECURE_DESERIALIZATION("Insecure deserialization (Java)", OwaspRef.INSECURE_DESERIALIZATION),
+    REQUEST_SMUGGLING_CANDIDATE("HTTP request smuggling candidate", OwaspRef.REQUEST_SMUGGLING),
+    PROTOTYPE_POLLUTION("Server-side prototype pollution candidate", OwaspRef.PROTOTYPE_POLLUTION),
+    FORBIDDEN_BYPASS("403/401 access-control bypass", OwaspRef.FORBIDDEN_BYPASS);
 
     private final String displayName;
     private final OwaspRef defaultOwaspRef;

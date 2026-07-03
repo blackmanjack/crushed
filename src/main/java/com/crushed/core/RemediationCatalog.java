@@ -33,6 +33,18 @@ public final class RemediationCatalog {
             case PATH_TRAVERSAL -> "Resolve requested paths against an allow-list of filenames/IDs server-side; never concatenate user input into a filesystem path, and canonicalize+verify the result stays within the intended directory.";
             case CRLF_INJECTION -> "Strip or reject CR/LF characters from any value written into a response header; use a framework API that sets headers safely rather than raw string concatenation.";
             case OAUTH_MISCONFIGURATION -> "Require and validate a per-request `state` parameter, use the authorization code flow with PKCE instead of the implicit flow, and validate `redirect_uri` against an exact allow-list.";
+            case COOKIE_MISSING_SECURE_FLAG -> "Set the `Secure` attribute on every cookie issued over HTTPS so it is never sent over a plaintext connection.";
+            case COOKIE_MISSING_HTTPONLY_FLAG -> "Set the `HttpOnly` attribute on session/auth cookies so they cannot be read via document.cookie, mitigating token theft via XSS.";
+            case COOKIE_MISSING_SAMESITE -> "Set `SameSite=Lax` or `Strict` on session cookies (and pair `SameSite=None` with `Secure`) to limit cross-site request forgery via the cookie.";
+            case TECH_STACK_DISCLOSURE -> "Remove or generalize version-revealing response headers (Server, X-Powered-By, X-AspNet-Version, etc.) at the reverse proxy/framework level.";
+            case MISSING_HSTS -> "Send `Strict-Transport-Security` with a long max-age (and includeSubDomains/preload where appropriate) on every HTTPS response.";
+            case MISSING_X_CONTENT_TYPE_OPTIONS -> "Send `X-Content-Type-Options: nosniff` on every response to prevent browsers from MIME-sniffing away from the declared Content-Type.";
+            case MISSING_CLICKJACKING_PROTECTION -> "Send `X-Frame-Options: DENY`/`SAMEORIGIN` or a CSP `frame-ancestors` directive on every HTML response to prevent the page being framed.";
+            case MISSING_CSP -> "Implement a Content-Security-Policy that restricts script/style/frame sources to trusted origins, as defense-in-depth against XSS and clickjacking.";
+            case INSECURE_DESERIALIZATION -> "Never deserialize untrusted Java objects; use a safe data format (JSON/Protobuf) or an allow-list-based ObjectInputFilter if native serialization is unavoidable.";
+            case REQUEST_SMUGGLING_CANDIDATE -> "Never send both Content-Length and Transfer-Encoding on the same request/response; ensure front-end and back-end servers agree on exactly one framing mechanism.";
+            case PROTOTYPE_POLLUTION -> "Reject or strip `__proto__`/`constructor.prototype` keys from any JSON merged into an object server-side; use `Object.create(null)` or a Map for untrusted key/value data.";
+            case FORBIDDEN_BYPASS -> "Enforce access-control decisions in a single, path-normalization-aware layer server-side; never rely on the front-end/proxy path or header alone to gate access.";
         };
     }
 }

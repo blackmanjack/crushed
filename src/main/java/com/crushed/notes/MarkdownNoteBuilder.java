@@ -37,22 +37,41 @@ public final class MarkdownNoteBuilder {
             return;
         }
         for (Finding finding : findings) {
-            sb.append("### ").append(finding.issueType().displayName())
-                    .append(" [").append(finding.severity()).append('/').append(finding.confidence()).append("]\n");
-            sb.append("- Endpoint: `").append(finding.endpointKey()).append("`\n");
-            sb.append("- OWASP: ").append(finding.owaspRef().owaspTop10());
-            if (finding.owaspRef().owaspApiTop10() != null) sb.append(" / ").append(finding.owaspRef().owaspApiTop10());
-            sb.append(" | WSTG: ").append(finding.owaspRef().wstgId());
-            sb.append(" | CWE: ").append(finding.owaspRef().cwe()).append('\n');
-            sb.append("- Rationale: ").append(finding.rationale()).append('\n');
-            sb.append("- Remediation: ").append(finding.remediation()).append('\n');
-            for (Evidence e : finding.evidence()) {
-                sb.append("  - Req #").append(e.historyId()).append(" @ ").append(e.source())
-                        .append(":").append(e.lineOrOffset());
-                if (e.paramOrFieldName() != null) sb.append(" (param=").append(e.paramOrFieldName()).append(')');
-                sb.append(" — `").append(e.snippet()).append("`\n");
-            }
-            sb.append('\n');
+            sb.append(renderFinding(finding)).append('\n');
         }
+    }
+
+    /** Renders a single Finding as a Burp-Pro-style Advisory block: title/severity, Background
+     * (rationale), Remediation, References, and evidence. Shared by the whole-host dump above and
+     * the single-finding Advisory detail panel in CrushedTab. */
+    public String renderFinding(Finding finding) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("### ").append(finding.issueType().displayName())
+                .append(" [").append(finding.severity()).append('/').append(finding.confidence()).append("]\n");
+        sb.append("- Endpoint: `").append(finding.endpointKey()).append("`\n");
+        sb.append("- Status: ").append(finding.status()).append(" | Triage: ").append(finding.triageState()).append('\n');
+        sb.append("- Background: ").append(finding.rationale()).append('\n');
+        sb.append("- Remediation: ").append(finding.remediation()).append('\n');
+        sb.append("- References:\n");
+        String owaspUrl = ReferenceLinks.owaspTop10Url(finding.owaspRef().owaspTop10());
+        sb.append("  - OWASP Top 10: ").append(finding.owaspRef().owaspTop10());
+        if (owaspUrl != null) sb.append(" — ").append(owaspUrl);
+        sb.append('\n');
+        if (finding.owaspRef().owaspApiTop10() != null) {
+            sb.append("  - OWASP API Top 10: ").append(finding.owaspRef().owaspApiTop10()).append('\n');
+        }
+        sb.append("  - WSTG: ").append(ReferenceLinks.wstgReferenceText(finding.owaspRef().wstgId(), null)).append('\n');
+        String cweUrl = ReferenceLinks.cweUrl(finding.owaspRef().cwe());
+        sb.append("  - CWE: ").append(finding.owaspRef().cwe());
+        if (cweUrl != null) sb.append(" — ").append(cweUrl);
+        sb.append('\n');
+        sb.append("- Evidence:\n");
+        for (Evidence e : finding.evidence()) {
+            sb.append("  - Req #").append(e.historyId()).append(" @ ").append(e.source())
+                    .append(":").append(e.lineOrOffset());
+            if (e.paramOrFieldName() != null) sb.append(" (param=").append(e.paramOrFieldName()).append(')');
+            sb.append(" — `").append(e.snippet()).append("`\n");
+        }
+        return sb.toString();
     }
 }

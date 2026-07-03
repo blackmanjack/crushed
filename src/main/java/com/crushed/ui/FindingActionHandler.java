@@ -59,4 +59,13 @@ public interface FindingActionHandler {
      * Crawling are both enabled. Never throws.
      */
     void startCrawl(String seedUrl);
+
+    /**
+     * Probes a small built-in wordlist of common backup/sensitive file paths against the given
+     * base URL (e.g. "https://app.example.com"), returning a Finding for every 2xx hit. Every
+     * fetched path also runs through the full analyzer pipeline via CrawlEngine's shared
+     * send-and-ingest primitive. Returns an empty list if Active mode is off or the host is out
+     * of scope (both reported via ActivityLog). Never throws.
+     */
+    List<Finding> probeBackupFiles(String baseUrl);
 }

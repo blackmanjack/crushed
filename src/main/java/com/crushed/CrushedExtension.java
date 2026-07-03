@@ -10,24 +10,32 @@ import com.crushed.analyzers.Analyzer;
 import com.crushed.analyzers.impl.*;
 import com.crushed.core.ActiveConfirmationService;
 import com.crushed.core.AnalysisPipeline;
+import com.crushed.core.BackupFileProbe;
 import com.crushed.core.BodySubstitutingSender;
 import com.crushed.core.CrawlEngine;
 import com.crushed.core.EndpointRegistry;
 import com.crushed.core.HistoryIngestor;
 import com.crushed.core.FirebaseSender;
+import com.crushed.core.ForbiddenBypassSender;
 import com.crushed.core.LinkHarvester;
+import com.crushed.core.LiveTaskManager;
 import com.crushed.core.MassAssignmentSender;
 import com.crushed.core.MontoyaRequestSender;
 import com.crushed.core.ParameterSubstitutingSender;
+import com.crushed.core.RequestFingerprint;
 import com.crushed.core.ReplayableRequestFactory;
 import com.crushed.core.RequestStore;
 import com.crushed.core.ScopeGate;
 import com.crushed.core.SessionColorAssigner;
 import com.crushed.core.TriagePersistenceBridge;
 import com.crushed.core.TriageStore;
+import com.crushed.core.WstgCatalog;
+import com.crushed.core.WstgChecklistPersistenceBridge;
+import com.crushed.core.WstgChecklistStore;
 import com.crushed.detectors.BlockDetector;
 import com.crushed.detectors.CrlfInjectionDetector;
 import com.crushed.detectors.FirebaseDetector;
+import com.crushed.detectors.ForbiddenBypassDetector;
 import com.crushed.detectors.MassAssignmentDetector;
 import com.crushed.detectors.OastConfirmedDetector;
 import com.crushed.detectors.PathTraversalDetector;
@@ -68,6 +76,7 @@ public final class CrushedExtension implements BurpExtension {
         ActivityLog activityLog = new ActivityLog();
         IdentityRegistry identityRegistry = new IdentityRegistry();
         SettingsPanel settingsPanel = new SettingsPanel(identityRegistry);
+        LiveTaskManager liveTaskManager = new LiveTaskManager(scopeGate::isInScope);
 
         // ---- MVP: passive pipeline (Iterasi 1) ----
         List<Analyzer> analyzers = List.of(
@@ -92,7 +101,13 @@ public final class CrushedExtension implements BurpExtension {
                 new ReflectedInputAnalyzer(),
                 new PathTraversalAnalyzer(),
                 new CrlfInjectionAnalyzer(),
-                new OAuthAnalyzer()
+                new OAuthAnalyzer(),
+                new CookieSecurityAnalyzer(),
+                new SecurityHeaderAnalyzer(),
+                new DeserializationAnalyzer(),
+                new RequestSmugglingAnalyzer(),
+                new PrototypePollutionAnalyzer(),
+                new ForbiddenResponseAnalyzer()
         );
 
         RequestStore requestStore = new RequestStore();
@@ -102,16 +117,15 @@ public final class CrushedExtension implements BurpExtension {
         TriagePersistenceBridge triagePersistenceBridge = new TriagePersistenceBridge(api.persistence().extensionData(), activityLog);
         triagePersistenceBridge.loadInto(triageStore);
 
+        WstgCatalog wstgCatalog = new WstgCatalog();
+        WstgChecklistStore wstgChecklistStore = new WstgChecklistStore();
+        WstgChecklistPersistenceBridge wstgChecklistPersistenceBridge =
+                new WstgChecklistPersistenceBridge(api.persistence().extensionData(), activityLog);
+        wstgChecklistPersistenceBridge.loadInto(wstgChecklistStore);
+
         AnalysisPipeline pipeline = new AnalysisPipeline(registry, analyzers, api.logging(), activityLog, triageStore);
         HistoryIngestor ingestor = new HistoryIngestor(api, scopeGate, pipeline, requestStore,
                 sessionColorAssigner, settingsPanel::isSessionColorCodingEnabled);
-
-        try {
-            api.proxy().registerResponseHandler(ingestor);
-        } catch (Exception e) {
-            api.logging().logToError("Failed to register proxy response handler: " + e);
-            activityLog.error("CrushedExtension", -1, "Failed to register proxy response handler: " + e);
-        }
 
         // Read what's already in history before hooking new traffic.
         ingestor.ingestExistingHistory();
@@ -137,13 +151,68 @@ public final class CrushedExtension implements BurpExtension {
         FirebaseDetector firebaseDetector = new FirebaseDetector(activityLog);
         PathTraversalDetector pathTraversalDetector = new PathTraversalDetector(wafBypassEngine, activityLog);
         CrlfInjectionDetector crlfInjectionDetector = new CrlfInjectionDetector(activityLog);
+        ForbiddenBypassSender forbiddenBypassSender = new ForbiddenBypassSender(api, scopeGate, settingsPanel::isActiveModeEnabled, activityLog);
+        ForbiddenBypassDetector forbiddenBypassDetector = new ForbiddenBypassDetector(activityLog);
         ActiveConfirmationService activeConfirmationService = new ActiveConfirmationService(
                 requestStore, paramSender, bodySender, massAssignmentSender, firebaseSender, sqliDetector, xssDetector,
                 oastConfirmedDetector, massAssignmentDetector, firebaseDetector, pathTraversalDetector,
-                crlfInjectionDetector, activityLog);
+                crlfInjectionDetector, forbiddenBypassSender, forbiddenBypassDetector, activityLog);
         CrawlEngine crawlEngine = new CrawlEngine(api, scopeGate, ingestor, new LinkHarvester(),
                 settingsPanel::isActiveModeEnabled, settingsPanel::isCrawlingEnabled,
                 settingsPanel::crawlMaxRequests, settingsPanel::crawlMaxDepth, settingsPanel::crawlDelayMs, activityLog);
+        BackupFileProbe backupFileProbe = new BackupFileProbe(scopeGate, crawlEngine, settingsPanel::isActiveModeEnabled, activityLog);
+        java.util.Set<String> autoConfirmedDedupeKeys = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+        // Generic Http handler (not Proxy-only) gated by LiveTaskManager — this is what unlocks
+        // Repeater/Intruder-sourced traffic being analyzed, which Proxy-only ingestion never could.
+        // Fresh installs get exactly today's behavior via LiveTaskManager's seeded default task
+        // (Proxy tools, Suite scope, PASSIVE_ANALYSIS, no dedup).
+        try {
+            api.http().registerHttpHandler(new burp.api.montoya.http.handler.HttpHandler() {
+                @Override
+                public burp.api.montoya.http.handler.RequestToBeSentAction handleHttpRequestToBeSent(
+                        burp.api.montoya.http.handler.HttpRequestToBeSent request) {
+                    return burp.api.montoya.http.handler.RequestToBeSentAction.continueWith(request);
+                }
+
+                @Override
+                public burp.api.montoya.http.handler.ResponseReceivedAction handleHttpResponseReceived(
+                        burp.api.montoya.http.handler.HttpResponseReceived response) {
+                    try {
+                        var tool = response.toolSource().toolType();
+                        var request = response.initiatingRequest();
+                        String url = request.url();
+                        if (liveTaskManager.shouldIngest(tool, url)) {
+                            String endpointKey = (request.httpService() != null ? request.httpService().host() : "") + " "
+                                    + request.method() + " " + RequestFingerprint.normalizePathTemplate(request.path());
+                            if (liveTaskManager.shouldProceedWithDedup(tool, url, endpointKey)) {
+                                ingestor.ingestFetched(request, response, response.annotations());
+                                if (liveTaskManager.shouldAutoConfirm(tool, url)) {
+                                    HostNotes hostNotes = registry.hostNotesFor(request.httpService() != null ? request.httpService().host() : "");
+                                    for (Finding finding : hostNotes.potentialFindings()) {
+                                        if (!finding.endpointKey().equals(endpointKey)) continue;
+                                        if (!autoConfirmedDedupeKeys.add(finding.dedupeKey())) continue;
+                                        try {
+                                            for (Finding confirmed : activeConfirmationService.confirm(finding)) {
+                                                hostNotes.addOrMergeFinding(confirmed);
+                                            }
+                                        } catch (Exception e) {
+                                            activityLog.error("LiveTask", -1, "Auto-confirm failed for " + finding.dedupeKey() + ": " + e);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        activityLog.error("CrushedExtension", -1, "handleHttpResponseReceived failed: " + e);
+                    }
+                    return burp.api.montoya.http.handler.ResponseReceivedAction.continueWith(response);
+                }
+            });
+        } catch (Exception e) {
+            api.logging().logToError("Failed to register HTTP handler: " + e);
+            activityLog.error("CrushedExtension", -1, "Failed to register HTTP handler: " + e);
+        }
 
         FindingActionHandler actionHandler = new FindingActionHandler() {
             @Override
@@ -252,9 +321,20 @@ public final class CrushedExtension implements BurpExtension {
                     activityLog.error("CrawlEngine", -1, "startCrawl failed: " + e);
                 }
             }
+
+            @Override
+            public List<Finding> probeBackupFiles(String baseUrl) {
+                try {
+                    return backupFileProbe.probeHost(baseUrl);
+                } catch (Exception e) {
+                    activityLog.error("BackupFileProbe", -1, "probeBackupFiles failed: " + e);
+                    return List.of();
+                }
+            }
         };
 
-        CrushedTab tab = new CrushedTab(registry, activityLog, settingsPanel, actionHandler);
+        CrushedTab tab = new CrushedTab(registry, activityLog, settingsPanel, actionHandler,
+                wstgCatalog, wstgChecklistStore, wstgChecklistPersistenceBridge, liveTaskManager);
         api.userInterface().registerSuiteTab("crushed", tab.component());
 
         api.logging().logToOutput("crushed loaded: " + registry.hostCount() + " host(s) pre-loaded from history. " +

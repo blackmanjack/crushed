@@ -25,9 +25,9 @@ class AnalysisPipelineTest {
         AnalysisPipeline pipeline = new AnalysisPipeline(registry, List.of(), null, new ActivityLog());
 
         AnalysisContext ctx1 = AnalysisContext.http(1, "api.example.com", "GET", "/api/v1/users/1", "", "", 200,
-                Map.of(), Map.of(), List.of(), "", "", "application/json");
+                Map.of(), Map.of(), List.of(), "", "", "application/json", false);
         AnalysisContext ctx2 = AnalysisContext.http(2, "api.example.com", "GET", "/api/v1/users/2", "", "", 200,
-                Map.of(), Map.of(), List.of(), "", "", "application/json");
+                Map.of(), Map.of(), List.of(), "", "", "application/json", false);
 
         pipeline.process(ctx1);
         pipeline.process(ctx2);
@@ -54,7 +54,7 @@ class AnalysisPipelineTest {
         AnalysisPipeline pipeline = new AnalysisPipeline(registry, List.of(throwingAnalyzer), null, activityLog);
 
         AnalysisContext ctx = AnalysisContext.http(1, "api.example.com", "GET", "/x", "", "", 200,
-                Map.of(), Map.of(), List.of(), "", "", "application/json");
+                Map.of(), Map.of(), List.of(), "", "", "application/json", false);
 
         assertDoesNotThrow(() -> pipeline.process(ctx));
         assertTrue(activityLog.snapshot().stream().anyMatch(e -> e.module().equals("ThrowingAnalyzer")));
@@ -86,7 +86,7 @@ class AnalysisPipelineTest {
         AnalysisPipeline pipeline = new AnalysisPipeline(registry, List.of(flaggingAnalyzer), null, new ActivityLog(), triageStore);
 
         AnalysisContext ctx = AnalysisContext.http(1, "api.example.com", "GET", "/x", "", "", 200,
-                Map.of(), Map.of(), List.of(), "", "", "application/json");
+                Map.of(), Map.of(), List.of(), "", "", "application/json", false);
         pipeline.process(ctx);
 
         HostNotes hostNotes = registry.hostNotesFor("api.example.com");

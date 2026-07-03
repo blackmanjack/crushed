@@ -1,8 +1,11 @@
 package com.crushed.core;
 
 import com.crushed.model.Endpoint;
+import com.crushed.model.Finding;
 import com.crushed.model.HostNotes;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,5 +33,15 @@ public final class EndpointRegistry {
 
     public int hostCount() {
         return hostsByName.size();
+    }
+
+    /** Flat-maps every HostNotes.allFindings() across every registered host — needed for
+     * global views (e.g. WSTG-coverage) that aren't scoped to a single selected host. */
+    public List<Finding> allFindingsAcrossHosts() {
+        List<Finding> all = new ArrayList<>();
+        for (HostNotes hostNotes : hostsByName.values()) {
+            all.addAll(hostNotes.allFindings());
+        }
+        return all;
     }
 }

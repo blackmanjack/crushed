@@ -67,6 +67,6 @@ class ActiveConfirmationServiceXxeRceTest {
         MassAssignmentDetector massAssignmentDetector = new MassAssignmentDetector(activityLog);
         FirebaseDetector firebaseDetector = new FirebaseDetector(activityLog);
         return new ActiveConfirmationService(requestStore, null, bodySender, null, null, sqliDetector, xssDetector,
-                oastConfirmedDetector, massAssignmentDetector, firebaseDetector, null, null, activityLog);
+                oastConfirmedDetector, massAssignmentDetector, firebaseDetector, null, null, null, null, activityLog);
     }
 }

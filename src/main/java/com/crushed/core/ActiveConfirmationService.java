@@ -3,6 +3,7 @@ package com.crushed.core;
 import com.crushed.detectors.CrlfInjectionDetector;
 import com.crushed.detectors.FirebaseDetector;
 import com.crushed.detectors.FirebaseProjectIdExtractor;
+import com.crushed.detectors.ForbiddenBypassDetector;
 import com.crushed.detectors.MassAssignmentDetector;
 import com.crushed.detectors.OastConfirmedDetector;
 import com.crushed.detectors.PathTraversalDetector;
@@ -41,6 +42,8 @@ public final class ActiveConfirmationService {
     private final FirebaseDetector firebaseDetector;
     private final PathTraversalDetector pathTraversalDetector;
     private final CrlfInjectionDetector crlfInjectionDetector;
+    private final ForbiddenBypassSender forbiddenBypassSenderFactory;
+    private final ForbiddenBypassDetector forbiddenBypassDetector;
     private final FirebaseProjectIdExtractor firebaseProjectIdExtractor = new FirebaseProjectIdExtractor();
     private final ActivityLog activityLog;
 
@@ -49,7 +52,8 @@ public final class ActiveConfirmationService {
                                       FirebaseSender firebaseSenderFactory, SqliDetector sqliDetector, XssDetector xssDetector,
                                       OastConfirmedDetector oastConfirmedDetector, MassAssignmentDetector massAssignmentDetector,
                                       FirebaseDetector firebaseDetector, PathTraversalDetector pathTraversalDetector,
-                                      CrlfInjectionDetector crlfInjectionDetector, ActivityLog activityLog) {
+                                      CrlfInjectionDetector crlfInjectionDetector, ForbiddenBypassSender forbiddenBypassSenderFactory,
+                                      ForbiddenBypassDetector forbiddenBypassDetector, ActivityLog activityLog) {
         this.requestStore = requestStore;
         this.paramSenderFactory = paramSenderFactory;
         this.bodySenderFactory = bodySenderFactory;
@@ -62,6 +66,8 @@ public final class ActiveConfirmationService {
         this.firebaseDetector = firebaseDetector;
         this.pathTraversalDetector = pathTraversalDetector;
         this.crlfInjectionDetector = crlfInjectionDetector;
+        this.forbiddenBypassSenderFactory = forbiddenBypassSenderFactory;
+        this.forbiddenBypassDetector = forbiddenBypassDetector;
         this.activityLog = activityLog;
     }
 
@@ -102,6 +108,14 @@ public final class ActiveConfirmationService {
             activityLog.info("ActiveConfirmationService", historyId,
                     finding.issueType() + " probe planted; result (if any) will appear once an OAST callback arrives.");
             return List.of();
+        }
+
+        // 403/401 bypass retries path/header variants of the whole request — no named parameter required.
+        if (finding.issueType() == IssueType.FORBIDDEN_BYPASS) {
+            int originalStatus = stored.response() != null ? stored.response().statusCode() : 0;
+            int originalBodyLength = stored.response() != null ? stored.response().bodyToString().length() : 0;
+            return forbiddenBypassDetector.probe(historyId, finding.endpointKey(), originalStatus, originalBodyLength,
+                    forbiddenBypassSenderFactory.forRequest(stored));
         }
 
         String paramName = finding.evidence().stream()
